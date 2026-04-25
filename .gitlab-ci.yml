@@ -1,0 +1,78 @@
+variables:
+  # Disable shallow clone to suppress git error in moon command.
+  # Otherwise you may encounter git failue like:
+  # fatal: ambiguous argument 'main': unknown revision or path not in the working tree.
+  # More information:
+  # - https://github.com/moonrepo/moon/issues/1038
+  # - https://docs.gitlab.com/ee/ci/large_repositories/#shallow-cloning
+  GIT_DEPTH: "0"
+  # Do not clean node_modules (default to -ffdx)
+  GIT_CLEAN_FLAGS: -ffd
+
+# To avoid duplicate pipelines when using job rules
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+default:
+  image: msai-cn-beijing.cr.volces.com/msai/devops/ci-base:latest
+  before_script:
+    - export PATH=$PWD/node_modules/.bin:$PATH
+    # - command -v moon || pnpm install
+    - npm config set registry https://registry.npmmirror.com
+  tags:
+    - kimi
+
+stages:
+  - pre-build
+  - build
+  - pre-merge
+
+lint:
+  stage: pre-build
+  script:
+    - echo "✅ Go lint successful"
+
+test:
+  stage: pre-build
+  script:
+    - go test -coverprofile=coverage.out $(go list ./... | grep -v /examples)
+    - go tool cover -func=coverage.out
+    - go tool gocover-cobertura < coverage.out > coverage.xml
+    - echo "✅ Go test successful"
+  coverage: '/^total:\s+\(statements\)\s+(\d+\.\d+%)/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+build:
+  stage: build
+  script:
+    - |
+      docker build --platform linux/amd64 \
+        -f ./Dockerfile \
+        -t msai-cn-beijing.cr.volces.com/msai/kimiko:${CI_COMMIT_SHA:0:7} --push .
+
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - when: on_success
+
+check-commits:
+  stage: pre-merge
+  script:
+    - |
+      if git log --pretty=format:'%s %H' $CI_MERGE_REQUEST_DIFF_BASE_SHA..$CI_COMMIT_SHA | grep -E '^test' >/dev/null; then
+        echo -e "\033[1;31m🚨 [ERROR] Commits starting with 'test' found! Please remove the corresponding commits and push again.\033[0m"
+        echo -e "\033[1;33mThe following commits need to be removed:\033[0m"
+        git log --pretty=format:'  %s - %H' $CI_MERGE_REQUEST_DIFF_BASE_SHA..$CI_COMMIT_SHA | grep -E '^  test'
+        echo -e "\033[1;31m⚠️ Please remove the above commits and push again. ⚠️\033[0m"
+        exit 1
+      fi
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
