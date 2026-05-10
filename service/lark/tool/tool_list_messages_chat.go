@@ -37,7 +37,9 @@ func NewListMessagesChat(larkcli *lark.Lark) llmtool.Toolx {
 }
 
 type toolListMessagesChat struct {
-	larkcli *lark.Lark
+	ToolListMessagesChat `json:",inline"`
+
+	larkcli *lark.Lark `json:"-"`
 }
 
 func (t *toolListMessagesChat) Tool() anyllm.Tool {
@@ -75,21 +77,20 @@ func (t *toolListMessagesChat) Execute(ctx context.Context, args string, opts ..
 		pageToken = new(val)
 	}
 
-	params := ToolListMessagesChat{}
-	if err := json.Unmarshal([]byte(args), &params); err != nil {
+	if err := json.Unmarshal([]byte(args), t); err != nil {
 		return "", err
 	}
 
 	var startTime, endTime *string
-	if params.StartTime != nil && *params.StartTime != "" {
-		ts, err := time.Parse(time.RFC3339, *params.StartTime)
+	if t.StartTime != nil && *t.StartTime != "" {
+		ts, err := time.Parse(time.RFC3339, *t.StartTime)
 		if err != nil {
 			return "", err
 		}
 		startTime = new(strconv.FormatInt(ts.Unix(), 10))
 	}
-	if params.EndTime != nil && *params.EndTime != "" {
-		ts, err := time.Parse(time.RFC3339, *params.EndTime)
+	if t.EndTime != nil && *t.EndTime != "" {
+		ts, err := time.Parse(time.RFC3339, *t.EndTime)
 		if err != nil {
 			return "", err
 		}

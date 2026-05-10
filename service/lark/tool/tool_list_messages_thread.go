@@ -36,7 +36,9 @@ func NewListMessagesThread(larkcli *lark.Lark) llmtool.Toolx {
 }
 
 type toolListMessagesThread struct {
-	larkcli *lark.Lark
+	ToolListMessagesThread `json:",inline"`
+
+	larkcli *lark.Lark `json:"-"`
 }
 
 func (t *toolListMessagesThread) Tool() anyllm.Tool {
