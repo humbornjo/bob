@@ -8,15 +8,21 @@ import (
 )
 
 type Config struct {
+	// Storage related config for lark service
 	Storage struct {
+		// Folder name as the sub directory of the root storage directory
 		Folder string `json:"folder"`
 	} `json:"storage"`
 
+	// Large Language Model related config
 	Model struct {
+		// Provider standard to be used
 		Provider llm.Provider `json:"provider"`
 
+		// Model name
 		Name string `json:"name"`
 
+		// MCP servers config
 		McpServers []llmmcp.ConfigMCP `json:"mcpservers"`
 	} `json:"model"`
 }

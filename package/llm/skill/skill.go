@@ -2,7 +2,6 @@ package llmskill
 
 import (
 	_ "embed"
-	"encoding/json"
 	"regexp"
 	"strings"
 
@@ -43,12 +42,6 @@ func init() {
 		if err := topValue.Decode(&document); err != nil {
 			panic(err)
 		}
-
-		jsonb, err := json.MarshalIndent(topValue, "", "  ")
-		if err != nil {
-			panic(err)
-		}
-		println(string(jsonb))
 
 		schemas = document.Components.Schemas
 	}

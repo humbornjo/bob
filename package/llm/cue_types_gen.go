@@ -2,4 +2,5 @@
 
 package llm
 
+// Provider of Large Language Model, enum: ["openai", "gemini"]
 type Provider string

@@ -2,7 +2,6 @@ package larktool
 
 import (
 	_ "embed"
-	"encoding/json"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -38,12 +37,6 @@ func init() {
 		if err := topValue.Decode(&document); err != nil {
 			panic(err)
 		}
-
-		jsonb, err := json.MarshalIndent(topValue, "", "  ")
-		if err != nil {
-			panic(err)
-		}
-		println(string(jsonb))
 
 		schemas = document.Components.Schemas
 	}

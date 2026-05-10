@@ -85,17 +85,17 @@ func Initialize(global *config.Config) {
 			svc.appid = appID
 			svc.openid = resp.OpenID
 		}
-		slog.Debug("initialize lark client", "app_id", svc.appid, "open_id", svc.openid, "app_name", svc.appname)
+		slog.Debug("initialize lark client", "app_name", svc.appname, "app_id", svc.appid, "open_id", svc.openid)
 
 		eventHandler := dispatcher.NewEventDispatcher("-", "-").
 			// OnP1MessageReadV1(svc.HandleP1MessageReadV1).
 			// OnP1MessageReceiveV1(svc.HandleP1MessageReceiveV1).
 			OnP2MessageReadV1(svc.HandleP2MessageReadV1).
 			OnP2MessageReceiveV1(svc.HandleP2MessageReceiveV1)
+
 		srvws := larkws.NewClient(
 			appID, appSecret,
 			larkws.WithEventHandler(eventHandler),
-			larkws.WithLogLevel(larkcore.LogLevelDebug),
 			larkws.WithLogger(logger{slog.Default()}),
 		)
 		mizudi.Register(func() (*larkws.Client, error) { return srvws, nil })

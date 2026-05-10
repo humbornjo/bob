@@ -6,13 +6,19 @@ import (
 )
 
 #Config: {
+	// Storage related config for lark service
 	storage!: {
+		// Folder name as the sub directory of the root storage directory
 		folder!: (string & !="") | *"/"
 	}
 
+	// Large Language Model related config
 	model: {
+		// Provider standard to be used
 		provider!: llm.#Provider
-		name!:     string
+		// Model name
+		name!: string
+		// MCP servers config
 		mcpservers: [...llmmcp.#ConfigMCP] @go("McpServers")
 	}
 }
