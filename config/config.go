@@ -3,7 +3,9 @@ package config
 import (
 	_ "embed"
 	"errors"
+	"fmt"
 	"os"
+	"reflect"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -35,7 +37,9 @@ func Initialize(paths ...string) *Config {
 	}
 
 	c := mizudi.Enchant(&_DEFAULT_CONFIG)
-	Validate(_SCHEMA, "#Config", c)
+	if err := Validate(_SCHEMA, c); err != nil {
+		panic(err)
+	}
 
 	mizudi.Register(func() (*Config, error) { return c, nil })
 
@@ -56,11 +60,17 @@ func Initialize(paths ...string) *Config {
 	return c
 }
 
-func Validate[T any](schemaString string, path string, x T) {
+func Validate[T any](rawSchema string, x T) error {
+	typ := reflect.TypeOf(x)
+	name := typ.Elem().Name()
+	path := "#" + name
+
 	cuetex := cuecontext.New()
-	schema := cuetex.CompileString(schemaString).LookupPath(cue.ParsePath(path))
-	unified := schema.Unify(cuetex.Encode(x))
+	schema := cuetex.CompileString(rawSchema)
+
+	unified := schema.LookupPath(cue.ParsePath(path)).Unify(cuetex.Encode(x))
 	if err := unified.Validate(cue.All(), cue.Definitions(true), cue.Schema()); err != nil {
-		panic("❌ " + err.Error())
+		return fmt.Errorf("❌ %s", err.Error())
 	}
+	return nil
 }

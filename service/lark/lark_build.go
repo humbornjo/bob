@@ -44,13 +44,18 @@ func (s *Service) BuildCompletionParams(ctx context.Context, messages []anyllm.M
 		slog.ErrorContext(ctx, "failed to call chat completion", "err", err)
 		return nil, anyllm.CompletionParams{}, err
 	}
-	switch completion.Choices[0].Message.ToolCalls[0].Function.Name {
-	case toolCreateMessageSend.Function().Name:
+
+	if len(completion.Choices) == 0 || len(completion.Choices[0].Message.ToolCalls) == 0 {
+		slog.ErrorContext(ctx, "no choices")
 		socket = larksock.NewSendSocket(s.larkcli, *event.Event.Message.ChatId)
-	case toolCreateMessageReply.Function().Name:
-		socket = larksock.NewReplySocket(s.larkcli, *event.Event.Message.MessageId)
+	} else {
+		switch completion.Choices[0].Message.ToolCalls[0].Function.Name {
+		case toolCreateMessageSend.Function().Name:
+			socket = larksock.NewSendSocket(s.larkcli, *event.Event.Message.ChatId)
+		case toolCreateMessageReply.Function().Name:
+			socket = larksock.NewReplySocket(s.larkcli, *event.Event.Message.MessageId)
+		}
 	}
-	defer socket.Close(ctx, nil) // nolint: errcheck
 
 	params.Stream = true
 	params.ToolChoice = "auto"

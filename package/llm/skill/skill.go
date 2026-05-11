@@ -1,3 +1,5 @@
+// Package llmskill is a extension pagekage for llm which focus on the
+// management of skills.
 package llmskill
 
 import (

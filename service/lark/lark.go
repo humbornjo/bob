@@ -3,8 +3,6 @@ package larksvc
 import (
 	_ "embed"
 	"html/template"
-	"io"
-	"net/http"
 
 	"github.com/chyroc/lark"
 	anyllm "github.com/mozilla-ai/any-llm-go"
@@ -12,6 +10,7 @@ import (
 	"github.com/humbornjo/bob/package/llm"
 	llmmcp "github.com/humbornjo/bob/package/llm/mcp"
 	"github.com/humbornjo/bob/package/storage"
+	"github.com/humbornjo/mizu/mizuoai"
 )
 
 var (
@@ -31,23 +30,22 @@ type Service struct {
 	appname, appid, openid string
 }
 
-func (s *Service) HandleSendMessage(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+type HandleSendMessageInput struct {
+	Content string `mizu:"body"`
+}
 
-	buf, err := io.ReadAll(r.Body)
+type HandleSendMessageOutput = string
+
+func (s *Service) HandleSendMessage(tx mizuoai.Tx[HandleSendMessageOutput], rx mizuoai.Rx[HandleSendMessageInput]) {
+	ctx := rx.Context()
+
+	input, err := rx.MizuRead()
 	if err != nil {
-		_, _ = w.Write([]byte(err.Error()))
+		tx.MizuWrite(new(err.Error()))
 		return
 	}
-	_ = r.Body.Close()
 
-	messages := []anyllm.Message{
-		{
-			Role:    anyllm.RoleUser,
-			Content: string(buf),
-		},
-	}
-
+	messages := []anyllm.Message{{Role: anyllm.RoleUser, Content: input.Content}}
 	params := &anyllm.CompletionParams{
 		Model:           s.model,
 		Stream:          true,
@@ -58,17 +56,22 @@ func (s *Service) HandleSendMessage(w http.ResponseWriter, r *http.Request) {
 	for _, it := range llm.AgentStream(ctx, s.provider, params) {
 		for chunk, err := range it {
 			if err != nil {
-				_, _ = w.Write([]byte(err.Error()))
+				_ = tx.MizuWrite(new(err.Error()))
 				return
 			}
-			if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
-				delta := chunk.Choices[0].Delta.Content
-				_, _ = w.Write([]byte("\n[DELTA]: "))
-				_, _ = w.Write([]byte(delta))
+			if len(chunk.Choices) == 0 {
+				continue
 			}
+			choice := chunk.Choices[0]
+			if content := choice.Delta.Content; content != "" {
+				_ = tx.MizuWrite(new("\n[DELTA_CONTENT]: " + content))
+			}
+			if reasoning := choice.Delta.Reasoning; reasoning != nil {
+				_ = tx.MizuWrite(new("\n[DELTA_REASONING]: " + reasoning.Content))
+			}
+
 			if reason := chunk.Choices[0].FinishReason; reason != "" {
-				_, _ = w.Write([]byte("\n[FINISH_REASON]: "))
-				_, _ = w.Write([]byte(reason))
+				_ = tx.MizuWrite(new("\n[FINISH_REASON]: " + reason))
 				return
 			}
 		}

@@ -8,10 +8,10 @@ package config
 	volcengine!: {
 		tos!: {
 			endpoint!:   string & =~"^https?://"
-			region!:     string & !=""
-			bucket!:     string & !=""
-			access_key!: string & !="" @go("AccessKey")
-			secret_key!: string & !="" @go("SecretKey")
+			region!:     string
+			bucket!:     string
+			access_key!: string @go("AccessKey")
+			secret_key!: string @go("SecretKey")
 		}
 	}
 }

@@ -11,11 +11,11 @@ require (
 	cuelang.org/go v0.16.1
 	github.com/chyroc/lark v0.0.114-0.20260301132506-805480d45802
 	github.com/google/uuid v1.6.0
-	github.com/humbornjo/mizu v0.1.1
-	github.com/humbornjo/mizu/mizudi v0.1.0
-	github.com/humbornjo/mizu/mizumw v0.1.0
-	github.com/humbornjo/mizu/mizuoai v0.1.0
-	github.com/humbornjo/mizu/mizuotel v0.1.1
+	github.com/humbornjo/mizu v0.1.2
+	github.com/humbornjo/mizu/mizudi v0.1.2
+	github.com/humbornjo/mizu/mizumw v0.1.2
+	github.com/humbornjo/mizu/mizuoai v0.1.2
+	github.com/humbornjo/mizu/mizuotel v0.1.2
 	github.com/larksuite/oapi-sdk-go/v3 v3.6.1
 	github.com/lmittmann/tint v1.1.3
 	github.com/mark3labs/mcp-go v0.50.0

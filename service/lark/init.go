@@ -22,6 +22,7 @@ import (
 	"github.com/humbornjo/bob/package/storage"
 	"github.com/humbornjo/mizu"
 	"github.com/humbornjo/mizu/mizudi"
+	"github.com/humbornjo/mizu/mizuoai"
 )
 
 //go:embed config.cue
@@ -29,13 +30,15 @@ var _SCHEMA string
 
 func Initialize(global *config.Config) {
 	local := mizudi.Enchant(&Config{})
-	config.Validate(_SCHEMA, "#Config", local)
+	if err := config.Validate(_SCHEMA, local); err != nil {
+		panic(err)
+	}
 
 	var svc = &Service{model: local.Model.Name}
 	srv := mizudi.MustRetrieve[*mizu.Server]()
 
 	group := srv.Group("/lark")
-	group.HandleFunc("/chat", svc.HandleSendMessage)
+	mizuoai.Post(group, "/chat", svc.HandleSendMessage)
 
 	// Initialize oos storage
 	{
