@@ -28,17 +28,24 @@ import (
 //go:embed config.cue
 var _SCHEMA string
 
-func Initialize(global *config.Config) {
+func Initialize(ctx context.Context, global *config.Config) {
 	local := mizudi.Enchant(&Config{})
-	if err := config.Validate(_SCHEMA, local); err != nil {
+
+	schema, err := config.NewSchema(_SCHEMA)
+	if err != nil {
 		panic(err)
 	}
+	config.SchemaMustValidate(schema, local)
 
 	var svc = &Service{model: local.Model.Name}
 	srv := mizudi.MustRetrieve[*mizu.Server]()
 
 	group := srv.Group("/lark")
-	mizuoai.Post(group, "/chat", svc.HandleSendMessage)
+	mizuoai.Post(
+		group, "/chat", svc.HandleSendMessage,
+		mizuoai.WithOperationTags("lark"),
+		mizuoai.WithOperationDescription(`A dummy LLM chat interface for test purposes.`),
+	)
 
 	// Initialize oos storage
 	{
@@ -71,14 +78,14 @@ func Initialize(global *config.Config) {
 		{
 			var tenantToken string
 			{
-				resp, _, err := svc.larkcli.Auth.GetTenantAccessToken(context.Background())
+				resp, _, err := svc.larkcli.Auth.GetTenantAccessToken(ctx)
 				if err != nil {
 					panic(err)
 				}
 				tenantToken = resp.Token
 			}
 			resp, _, err := svc.larkcli.Bot.GetBotInfo(
-				context.Background(), &lark.GetBotInfoReq{},
+				ctx, &lark.GetBotInfoReq{},
 				lark.WithRequestHeaders(map[string]string{"Authorization": "Bearer " + tenantToken}),
 			)
 			if err != nil {

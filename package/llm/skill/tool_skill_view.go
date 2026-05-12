@@ -20,10 +20,6 @@ var _ llmtool.Params = (*ToolSkillView)(nil)
 
 var _TOOL_SKILL_VIEW map[string]any
 
-func (t *ToolSkillView) String() string {
-	return "ToolSkillView"
-}
-
 func (t *ToolSkillView) Schema() map[string]any {
 	return _TOOL_SKILL_VIEW
 }

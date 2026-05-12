@@ -13,6 +13,7 @@ import (
 
 	"github.com/humbornjo/bob/config"
 	larksvc "github.com/humbornjo/bob/service/lark"
+	registrysvc "github.com/humbornjo/bob/service/registry"
 	"github.com/humbornjo/mizu"
 	"github.com/humbornjo/mizu/mizudi"
 	"github.com/humbornjo/mizu/mizulog"
@@ -72,7 +73,8 @@ func main() {
 	srv.Use(otelhttp.NewMiddleware(config.SERVICE_NAME))
 
 	// Initialize services ---------------------------------------------
-	larksvc.Initialize(global)
+	larksvc.Initialize(ctx, global)
+	registrysvc.Initialize(ctx, global)
 
 	errChan := make(chan error, 1)
 

@@ -83,14 +83,17 @@ func (t *toolmcp) Execute(ctx context.Context, args string, opts ...Option) (str
 		return "tool returned no content", nil
 	}
 
-	sb := strings.Builder{}
+	builder := strings.Builder{}
 	for _, content := range resp.Content {
 		switch cont := content.(type) {
 		case mcp.TextContent:
-			sb.WriteString(cont.Text)
+			builder.WriteString(cont.Text)
+		case mcp.ImageContent:
+		case mcp.AudioContent:
+		case mcp.EmbeddedResource:
 		}
 	}
-	return sb.String(), nil
+	return builder.String(), nil
 }
 
 func (t *toolmcp) ExecuteStream(ctx context.Context, args string, opts ...Option,

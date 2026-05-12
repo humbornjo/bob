@@ -14,10 +14,6 @@ var _ llmtool.Params = (*ToolCreateMessageSend)(nil)
 
 var _TOOL_CREATE_MESSAGE_SEND_SCHEMA map[string]any
 
-func (t *ToolCreateMessageSend) String() string {
-	return "ToolCreateMessageSend"
-}
-
 func (t *ToolCreateMessageSend) Schema() map[string]any {
 	return _TOOL_CREATE_MESSAGE_SEND_SCHEMA
 }

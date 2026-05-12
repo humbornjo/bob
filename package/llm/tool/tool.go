@@ -14,7 +14,6 @@ var (
 )
 
 type Params interface {
-	fmt.Stringer
 	Schema() map[string]any
 }
 

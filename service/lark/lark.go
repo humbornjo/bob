@@ -41,7 +41,7 @@ func (s *Service) HandleSendMessage(tx mizuoai.Tx[HandleSendMessageOutput], rx m
 
 	input, err := rx.MizuRead()
 	if err != nil {
-		tx.MizuWrite(new(err.Error()))
+		_ = tx.MizuWrite(new(err.Error()))
 		return
 	}
 

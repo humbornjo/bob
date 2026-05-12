@@ -19,10 +19,6 @@ var _ llmtool.Params = (*ToolSkillsList)(nil)
 
 var _TOOL_SKILLS_LIST map[string]any
 
-func (t *ToolSkillsList) String() string {
-	return "ToolSkillsList"
-}
-
 func (t *ToolSkillsList) Schema() map[string]any {
 	return _TOOL_SKILLS_LIST
 }

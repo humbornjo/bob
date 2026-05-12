@@ -21,10 +21,6 @@ var _ llmtool.Params = (*ToolListMessagesChat)(nil)
 
 var _TOOL_LIST_MESSAGES_CHAT_SCHEMA map[string]any
 
-func (t *ToolListMessagesChat) String() string {
-	return "ToolListMessagesChat"
-}
-
 func (t *ToolListMessagesChat) Schema() map[string]any {
 	return _TOOL_LIST_MESSAGES_CHAT_SCHEMA
 }

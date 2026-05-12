@@ -20,10 +20,6 @@ var _ llmtool.Params = (*ToolListMessagesThread)(nil)
 
 var _TOOL_LIST_MESSAGES_THREAD_SCHEMA map[string]any
 
-func (t *ToolListMessagesThread) String() string {
-	return "ToolListMessagesThread"
-}
-
 func (t *ToolListMessagesThread) Schema() map[string]any {
 	return _TOOL_LIST_MESSAGES_THREAD_SCHEMA
 }
