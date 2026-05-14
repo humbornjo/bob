@@ -54,7 +54,7 @@ func WithToolExtensions(extensions ...ToolExtension) Option {
 	}
 }
 
-func NewClient(config ConfigTransport, opts ...Option) (cli *Client, err error) {
+func NewClient(ctx context.Context, config ConfigTransport, opts ...Option) (cli *Client, err error) {
 	parse := func(data any, val any) error {
 		jsonb, err := json.Marshal(data)
 		if err != nil {
@@ -89,6 +89,9 @@ func NewClient(config ConfigTransport, opts ...Option) (cli *Client, err error) 
 		return nil, errors.New("unknown transport type")
 	}
 	if err != nil {
+		return nil, err
+	}
+	if _, err := inner.Initialize(ctx, mcp.InitializeRequest{}); err != nil {
 		return nil, err
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"iter"
+	"strings"
 
 	anyllm "github.com/mozilla-ai/any-llm-go"
 	"github.com/mozilla-ai/any-llm-go/providers"
@@ -73,4 +74,88 @@ func AgentStream(ctx context.Context, provider anyllm.Provider, params *anyllm.C
 		step++
 		goto loop
 	}
+}
+
+type Summarizer struct {
+	usage anyllm.Usage
+
+	content       strings.Builder
+	reasonContent strings.Builder
+
+	toolCalls        map[string]anyllm.ToolCall
+	toolArgsBuilders map[string]*strings.Builder
+
+	messages []anyllm.Message
+}
+
+func (s *Summarizer) Collect(chunk anyllm.ChatCompletionChunk) {
+	if s.toolCalls == nil {
+		s.toolCalls = make(map[string]anyllm.ToolCall)
+		s.toolArgsBuilders = make(map[string]*strings.Builder)
+	}
+
+	usage := chunk.Usage
+	if usage != nil {
+		s.usage.TotalTokens += usage.TotalTokens
+		s.usage.PromptTokens += usage.PromptTokens
+		s.usage.CompletionTokens += usage.CompletionTokens
+		s.usage.ReasoningTokens += usage.ReasoningTokens
+	}
+
+	delta := chunk.Choices[0].Delta
+
+	s.content.WriteString(delta.Content)
+	if delta.Reasoning != nil {
+		s.reasonContent.WriteString(delta.Reasoning.Content)
+	}
+
+	for _, tc := range delta.ToolCalls {
+		id := tc.ID
+		if _, ok := s.toolCalls[id]; !ok {
+			s.toolCalls[id] = tc
+			s.toolArgsBuilders[id] = &strings.Builder{}
+		}
+		s.toolArgsBuilders[id].WriteString(tc.Function.Arguments)
+	}
+}
+
+func (s *Summarizer) DrainStep() (message anyllm.Message, toolCalls iter.Seq2[string, anyllm.ToolCall]) {
+	defer s.content.Reset()
+	defer s.reasonContent.Reset()
+
+	content := s.content.String()
+	reasonContent := s.reasonContent.String()
+
+	message = anyllm.Message{
+		Role:    anyllm.RoleAssistant,
+		Content: content,
+		Reasoning: &anyllm.Reasoning{
+			Content: reasonContent,
+		},
+	}
+
+	s.messages = append(s.messages, message)
+	for id, tc := range s.toolCalls {
+		tc.Function.Arguments = s.toolArgsBuilders[id].String()
+		message.ToolCalls = append(message.ToolCalls, tc)
+	}
+
+	s.toolCalls = make(map[string]anyllm.ToolCall)
+	s.toolArgsBuilders = make(map[string]*strings.Builder)
+
+	return message, func(yield func(string, anyllm.ToolCall) bool) {
+		for _, tc := range message.ToolCalls {
+			if !yield(tc.ID, tc) {
+				return
+			}
+		}
+	}
+}
+
+func (s *Summarizer) Messages() []anyllm.Message {
+	return s.messages
+}
+
+func (s *Summarizer) AppendMessages(msgs ...anyllm.Message) {
+	s.messages = append(s.messages, msgs...)
 }

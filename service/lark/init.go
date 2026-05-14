@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/chyroc/lark"
+	"github.com/jmoiron/sqlx"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 	"github.com/larksuite/oapi-sdk-go/v3/event/dispatcher"
 	larkws "github.com/larksuite/oapi-sdk-go/v3/ws"
@@ -19,6 +20,7 @@ import (
 	"github.com/humbornjo/bob/config"
 	"github.com/humbornjo/bob/package/llm"
 	llmmcp "github.com/humbornjo/bob/package/llm/mcp"
+	llmpersist "github.com/humbornjo/bob/package/llm/persist"
 	"github.com/humbornjo/bob/package/storage"
 	"github.com/humbornjo/mizu"
 	"github.com/humbornjo/mizu/mizudi"
@@ -47,17 +49,24 @@ func Initialize(ctx context.Context, global *config.Config) {
 		mizuoai.WithOperationDescription(`A dummy LLM chat interface for test purposes.`),
 	)
 
-	// Initialize oos storage
+	// Initialize storage
 	{
 		toscli := mizudi.MustRetrieve[*tos.ClientV2]()
 		toscfg := global.Volcengine.Tos
-		svc.Storage = storage.FromVolcTOS(toscli, toscfg.Bucket, local.Storage.Folder)
+		svc.fs = storage.NewFileSystem(toscli, toscfg.Bucket, local.Storage.Folder)
+
+		db := mizudi.MustRetrieve[*sqlx.DB]()
+		persistence, err := llmpersist.FromSqlx(db)
+		if err != nil {
+			panic(err)
+		}
+		svc.ps = persistence
 	}
 
 	// Initialize mcp client
 	for _, mcpsrv := range local.Model.McpServers {
 		client, err := llmmcp.NewClient(
-			mcpsrv.Transport,
+			ctx, mcpsrv.Transport,
 			llmmcp.WithEnabledTools(mcpsrv.EnabledTools...),
 			llmmcp.WithDisabledTools(mcpsrv.DisabledTools...),
 			llmmcp.WithToolExtensions(mcpsrv.ToolExtensions...),

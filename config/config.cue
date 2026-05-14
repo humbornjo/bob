@@ -5,6 +5,10 @@ package config
 	level!: string & (*"DEBUG" | "INFO" | "WARN" | "ERROR" | "FATAL")
 	port!:  (string & =~"^[1-9][0-9]{0,4}$" | *"80")
 
+	postgres!: {
+		dsn!: string
+	}
+
 	volcengine!: {
 		tos!: {
 			endpoint!:   string & =~"^https?://"

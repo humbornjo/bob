@@ -9,6 +9,10 @@ type Config struct {
 
 	Port string `json:"port"`
 
+	Postgres struct {
+		Dsn string `json:"dsn"`
+	} `json:"postgres"`
+
 	Volcengine struct {
 		Tos struct {
 			Endpoint string `json:"endpoint"`

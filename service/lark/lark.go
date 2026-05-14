@@ -9,8 +9,13 @@ import (
 
 	"github.com/humbornjo/bob/package/llm"
 	llmmcp "github.com/humbornjo/bob/package/llm/mcp"
+	llmpersist "github.com/humbornjo/bob/package/llm/persist"
 	"github.com/humbornjo/bob/package/storage"
 	"github.com/humbornjo/mizu/mizuoai"
+)
+
+const (
+	SERVICE_NAME = "#lark"
 )
 
 var (
@@ -20,7 +25,8 @@ var (
 )
 
 type Service struct {
-	storage.Storage
+	fs storage.FileSystem
+	ps llmpersist.Persistence
 
 	model    string
 	provider anyllm.Provider

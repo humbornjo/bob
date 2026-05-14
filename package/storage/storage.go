@@ -11,22 +11,26 @@ import (
 )
 
 type Storage interface {
+	FileSystem
+}
+
+type FileSystem interface {
 	PresignURL(ctx context.Context, key string) (url string, err error)
 	Upload(ctx context.Context, file io.Reader, fileName string) (key string, err error)
 }
 
-func FromVolcTOS(cli *tos.ClientV2, bucket string, folder string) Storage {
-	return &storageVolc{ClientV2: cli}
+func NewFileSystem(cli *tos.ClientV2, bucket string, folder string) Storage {
+	return &fsTOS{ClientV2: cli}
 }
 
-type storageVolc struct {
+type fsTOS struct {
 	*tos.ClientV2
 
 	folder     string
 	bucketName string
 }
 
-func (s *storageVolc) convError(err error) error {
+func (s *fsTOS) convError(err error) error {
 	if serverErr, ok := err.(*tos.TosServerError); ok {
 		err = fmt.Errorf(
 			"tos server error: %s, requestID: %s, statusCode: %d, code: %s, message: %s",
@@ -38,7 +42,7 @@ func (s *storageVolc) convError(err error) error {
 	return err
 }
 
-func (s *storageVolc) PresignURL(ctx context.Context, key string) (url string, err error) {
+func (s *fsTOS) PresignURL(ctx context.Context, key string) (url string, err error) {
 	resp, err := s.PreSignedURL(&tos.PreSignedURLInput{
 		HTTPMethod: enum.HttpMethodGet,
 		Key:        key,
@@ -50,7 +54,7 @@ func (s *storageVolc) PresignURL(ctx context.Context, key string) (url string, e
 	return resp.SignedUrl, nil
 }
 
-func (s *storageVolc) Upload(ctx context.Context, file io.Reader, fileName string) (key string, err error) {
+func (s *fsTOS) Upload(ctx context.Context, file io.Reader, fileName string) (key string, err error) {
 	key = path.Join(s.folder, fileName)
 	if _, err = s.PutObjectV2(ctx, &tos.PutObjectV2Input{
 		Content:             file,

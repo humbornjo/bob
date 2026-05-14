@@ -11,7 +11,7 @@ import (
 	anyllm "github.com/mozilla-ai/any-llm-go"
 )
 
-func FromMcp(mcpcli *llmmcp.Client, tool mcp.Tool) Toolx {
+func FromMCP(mcpcli *llmmcp.Client, tool mcp.Tool) Toolx {
 	params := map[string]any{
 		"type":       tool.InputSchema.Type,
 		"properties": tool.InputSchema.Properties,

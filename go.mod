@@ -16,7 +16,9 @@ require (
 	github.com/humbornjo/mizu/mizumw v0.1.2
 	github.com/humbornjo/mizu/mizuoai v0.1.2
 	github.com/humbornjo/mizu/mizuotel v0.1.2
+	github.com/jmoiron/sqlx v1.4.0
 	github.com/larksuite/oapi-sdk-go/v3 v3.6.1
+	github.com/lib/pq v1.11.2
 	github.com/lmittmann/tint v1.1.3
 	github.com/mark3labs/mcp-go v0.50.0
 	github.com/mozilla-ai/any-llm-go v0.9.0

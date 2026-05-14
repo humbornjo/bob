@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"iter"
-	"strings"
 
 	anyllm "github.com/mozilla-ai/any-llm-go"
 )
@@ -63,67 +62,5 @@ func Wizard(functionTools ...Toolx) ([]anyllm.Tool, FunctionHandler) {
 			return "", fmt.Errorf("%w: %s", ErrToolNotExecutable, functionName)
 		}
 		return handler(ctx, fc.Arguments, opts...)
-	}
-}
-
-type Summarizer struct {
-	usage anyllm.Usage
-
-	content       strings.Builder
-	reasonContent strings.Builder
-
-	toolCalls        map[string]anyllm.ToolCall
-	toolArgsBuilders map[string]*strings.Builder
-}
-
-func (s *Summarizer) Collect(chunk anyllm.ChatCompletionChunk) {
-	if s.toolCalls == nil {
-		s.toolCalls = make(map[string]anyllm.ToolCall)
-		s.toolArgsBuilders = make(map[string]*strings.Builder)
-	}
-
-	usage := chunk.Usage
-	if usage != nil {
-		s.usage.TotalTokens += usage.TotalTokens
-		s.usage.PromptTokens += usage.PromptTokens
-		s.usage.CompletionTokens += usage.CompletionTokens
-		s.usage.ReasoningTokens += usage.ReasoningTokens
-	}
-
-	delta := chunk.Choices[0].Delta
-
-	s.content.WriteString(delta.Content)
-	if delta.Reasoning != nil {
-		s.reasonContent.WriteString(delta.Reasoning.Content)
-	}
-
-	for _, tc := range delta.ToolCalls {
-		id := tc.ID
-		if _, ok := s.toolCalls[id]; !ok {
-			s.toolCalls[id] = tc
-			s.toolArgsBuilders[id] = &strings.Builder{}
-		}
-		s.toolArgsBuilders[id].WriteString(tc.Function.Arguments)
-	}
-}
-
-func (s *Summarizer) DrainContent() string {
-	defer s.content.Reset()
-	return s.content.String()
-}
-
-func (s *Summarizer) DrainReasonContent() string {
-	defer s.reasonContent.Reset()
-	return s.reasonContent.String()
-}
-
-func (s *Summarizer) DrainToolCalls() iter.Seq2[string, anyllm.ToolCall] {
-	return func(yield func(string, anyllm.ToolCall) bool) {
-		for id, tc := range s.toolCalls {
-			tc.Function.Arguments = s.toolArgsBuilders[id].String()
-			if !yield(id, tc) {
-				return
-			}
-		}
 	}
 }

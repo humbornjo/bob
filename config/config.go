@@ -11,6 +11,8 @@ import (
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/encoding/openapi"
 	"github.com/humbornjo/mizu/mizudi"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 	"github.com/volcengine/ve-tos-golang-sdk/v2/tos"
 )
 
@@ -45,6 +47,14 @@ func Initialize(paths ...string) *Config {
 		panic(err)
 	}
 	SchemaMustValidate(schema, global)
+
+	{
+		db, err := sqlx.Connect("postgres", global.Postgres.Dsn)
+		if err != nil {
+			panic(err)
+		}
+		mizudi.Register(func() (*sqlx.DB, error) { return db, nil })
+	}
 
 	// Initialize Volcengine TOS storage client
 	{
