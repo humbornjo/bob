@@ -40,7 +40,9 @@ CREATE TABLE IF NOT EXISTS message_log (
 		content     JSONB NOT NULL,
 		created_at  TIMESTAMPTZ NOT NULL,
 		updated_at  TIMESTAMPTZ NOT NULL
-);`
+);
+CREATE INDEX IF NOT EXISTS idx_message_log_message_id
+	ON message_log(message_id);`
 
 type MessageLog struct {
 	ID        uuid.UUID                      `db:"id"`
@@ -67,7 +69,9 @@ CREATE TABLE IF NOT EXISTS relation_chat_message (
 		created_at TIMESTAMPTZ NOT NULL,
 		updated_at TIMESTAMPTZ NOT NULL,
 	  PRIMARY KEY (source, chat_id, message_id)
-);`
+);
+CREATE INDEX IF NOT EXISTS idx_relation_chat_message_created_at
+	ON relation_chat_message(source, chat_id, created_at DESC);`
 
 type RelationChatMessage struct {
 	Source    string    `db:"source"`

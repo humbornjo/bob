@@ -3,10 +3,10 @@ package larksvc
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
-	"github.com/chyroc/lark"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	anyllm "github.com/mozilla-ai/any-llm-go"
 
@@ -73,9 +73,7 @@ func (s *Service) HandleP2MessageReceiveV1(ctx context.Context, event *larkim.P2
 						continue agent
 					}
 					slog.ErrorContext(ctx, "agent loop exit on error", "err", err)
-					if err := socket.Close(ctx, err); err != nil {
-						slog.ErrorContext(ctx, "failed to send error", "err", err)
-					}
+					_, _ = fmt.Fprint(socket, err.Error())
 					return
 				}
 				summarizer.Collect(chunk)
@@ -90,10 +88,7 @@ func (s *Service) HandleP2MessageReceiveV1(ctx context.Context, event *larkim.P2
 				case anyllm.FinishReasonToolCalls:
 				case anyllm.FinishReasonStop:
 					message, _ := summarizer.DrainStep()
-					content := message.Content.(string)
-					if err := socket.Close(ctx, socket.Send(ctx, &lark.MessageContentPostMD{Text: content})); err != nil {
-						slog.ErrorContext(ctx, "failed to close with error", "err", err)
-					}
+					_, _ = fmt.Fprint(socket, message.Content.(string))
 					return
 				}
 			}
@@ -101,10 +96,7 @@ func (s *Service) HandleP2MessageReceiveV1(ctx context.Context, event *larkim.P2
 			assistantMessage, toolCalls := summarizer.DrainStep()
 			if content, ok := assistantMessage.Content.(string); ok && content != "" {
 				assistantMessage.Content = content
-				if err := socket.Close(ctx, socket.Send(ctx, &lark.MessageContentPostMD{Text: content})); err != nil {
-					slog.ErrorContext(ctx, "failed to close with error", "err", err)
-					return
-				}
+				_, _ = fmt.Fprint(socket, content)
 			}
 
 			toolcallMessages := []anyllm.Message{}
@@ -122,6 +114,7 @@ func (s *Service) HandleP2MessageReceiveV1(ctx context.Context, event *larkim.P2
 				slog.DebugContext(ctx, "toolcall end", "id", id, "function", tc.Function.Name, "result", result)
 				toolcallMessages = append(toolcallMessages, anyllm.Message{Role: anyllm.RoleTool, ToolCallID: id, Content: result})
 			}
+			slog.DebugContext(ctx, "toolcall messages", "count", len(toolcallMessages))
 			summarizer.AppendMessages(toolcallMessages...)
 			params.Messages = append(params.Messages, assistantMessage)
 			params.Messages = append(params.Messages, toolcallMessages...)

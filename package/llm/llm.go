@@ -134,12 +134,12 @@ func (s *Summarizer) DrainStep() (message anyllm.Message, toolCalls iter.Seq2[st
 		},
 	}
 
-	s.messages = append(s.messages, message)
 	for id, tc := range s.toolCalls {
 		tc.Function.Arguments = s.toolArgsBuilders[id].String()
 		message.ToolCalls = append(message.ToolCalls, tc)
 	}
 
+	s.messages = append(s.messages, message)
 	s.toolCalls = make(map[string]anyllm.ToolCall)
 	s.toolArgsBuilders = make(map[string]*strings.Builder)
 

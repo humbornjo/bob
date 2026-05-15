@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/chyroc/lark"
 	"github.com/jmoiron/sqlx"
+	larkoapi "github.com/larksuite/oapi-sdk-go/v3"
 	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 	"github.com/larksuite/oapi-sdk-go/v3/event/dispatcher"
 	larkws "github.com/larksuite/oapi-sdk-go/v3/ws"
@@ -40,8 +42,9 @@ func Initialize(ctx context.Context, global *config.Config) {
 	config.SchemaMustValidate(schema, local)
 
 	var svc = &Service{model: local.Model.Name}
-	srv := mizudi.MustRetrieve[*mizu.Server]()
+	mizudi.Register(func() (*Service, error) { return svc, nil })
 
+	srv := mizudi.MustRetrieve[*mizu.Server]()
 	group := srv.Group("/lark")
 	mizuoai.Post(
 		group, "/chat", svc.HandleSendMessage,
@@ -81,6 +84,8 @@ func Initialize(ctx context.Context, global *config.Config) {
 	{
 		appID := os.Getenv("LARK_APP_ID")
 		appSecret := os.Getenv("LARK_APP_SECRET")
+
+		svc.oapicli = larkoapi.NewClient(appID, appSecret)
 		svc.larkcli = lark.New(lark.WithAppCredential(appID, appSecret))
 
 		// Initialize app specific const values
@@ -117,7 +122,17 @@ func Initialize(ctx context.Context, global *config.Config) {
 			larkws.WithEventHandler(eventHandler),
 			larkws.WithLogger(logger{slog.Default()}),
 		)
-		mizudi.Register(func() (*larkws.Client, error) { return srvws, nil })
+		go func() {
+			backoff := 5 * time.Second
+
+		retry_ws:
+			if err := srvws.Start(ctx); err != nil {
+				slog.ErrorContext(ctx, "lark ws exit unexpectedly", "error", err, "backoff", backoff)
+				time.Sleep(backoff)
+				backoff = min(backoff*2, 30*time.Second)
+				goto retry_ws
+			}
+		}()
 	}
 
 	// Initialize model provider

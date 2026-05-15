@@ -10,6 +10,7 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/encoding/openapi"
+	"github.com/humbornjo/mizu"
 	"github.com/humbornjo/mizu/mizudi"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -27,15 +28,17 @@ var _DEFAULT_CONFIG = Config{
 //go:embed config.cue
 var _RAW_SCHEMA string
 
-func Initialize(paths ...string) *Config {
+func Initialize(verbose bool, paths ...string) *Config {
 	mizudi.DEFAULT_UNMARSHAL_TAG = "json"
 	if err := mizudi.Initialize("config", paths...); err != nil {
 		panic(err)
 	}
 
-	if err := mizudi.RevealConfig(os.Stdout); err != nil {
-		if !errors.Is(err, mizudi.ErrNotInitialized) {
-			panic(err)
+	if verbose {
+		if err := mizudi.RevealConfig(os.Stdout); err != nil {
+			if !errors.Is(err, mizudi.ErrNotInitialized) {
+				panic(err)
+			}
 		}
 	}
 
@@ -47,6 +50,15 @@ func Initialize(paths ...string) *Config {
 		panic(err)
 	}
 	SchemaMustValidate(schema, global)
+
+	// Server ----------------------------------------------------------
+	srv := mizu.NewServer(
+		SERVICE_NAME,
+		mizu.WithRevealRoutes(),
+		mizu.WithProfilingHandlers(),
+		mizu.WithServerProtocols(mizu.PROTOCOLS_HTTP2_UNENCRYPTED),
+	)
+	mizudi.Register(func() (*mizu.Server, error) { return srv, nil })
 
 	{
 		db, err := sqlx.Connect("postgres", global.Postgres.Dsn)

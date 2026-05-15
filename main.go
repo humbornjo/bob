@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	larkws "github.com/larksuite/oapi-sdk-go/v3/ws"
 	"github.com/lmittmann/tint"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
@@ -36,16 +35,9 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	global := config.Initialize(configPaths...)
+	global := config.Initialize(true, configPaths...)
 
-	// Server ----------------------------------------------------------
-	srv := mizu.NewServer(
-		config.SERVICE_NAME,
-		mizu.WithRevealRoutes(),
-		mizu.WithProfilingHandlers(),
-		mizu.WithServerProtocols(mizu.PROTOCOLS_HTTP2_UNENCRYPTED),
-	)
-	mizudi.Register(func() (*mizu.Server, error) { return srv, nil })
+	srv := mizudi.MustRetrieve[*mizu.Server]()
 
 	// OpenAPI ---------------------------------------------------------
 	if err := mizuoai.Initialize(srv,
@@ -77,14 +69,6 @@ func main() {
 	registrysvc.Initialize(ctx, global)
 
 	errChan := make(chan error, 1)
-
-	go func() {
-		srvws := mizudi.MustRetrieve[*larkws.Client]()
-		if err := srvws.Start(ctx); err != nil {
-			slog.ErrorContext(ctx, "lark ws exit unexpectedly", "error", err)
-			errChan <- err
-		}
-	}()
 
 	go func() {
 		defer cancel()

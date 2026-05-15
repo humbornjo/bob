@@ -5,6 +5,7 @@ import (
 	"html/template"
 
 	"github.com/chyroc/lark"
+	larkoapi "github.com/larksuite/oapi-sdk-go/v3"
 	anyllm "github.com/mozilla-ai/any-llm-go"
 
 	"github.com/humbornjo/bob/package/llm"
@@ -31,6 +32,7 @@ type Service struct {
 	model    string
 	provider anyllm.Provider
 	larkcli  *lark.Lark
+	oapicli  *larkoapi.Client
 	mcpclis  []*llmmcp.Client
 
 	appname, appid, openid string

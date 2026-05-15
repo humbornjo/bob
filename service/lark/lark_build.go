@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"log/slog"
 	"slices"
 	"strconv"
@@ -33,7 +34,7 @@ var (
 )
 
 func (s *Service) BuildCompletion(ctx context.Context, messages []anyllm.Message, eMessage *larkim.EventMessage,
-) (larksock.Socket, anyllm.CompletionParams, error) {
+) (io.WriteCloser, anyllm.CompletionParams, error) {
 	toolCreateMessageSend := larktool.NewCreateMessageSend()
 	toolCreateMessageReply := larktool.NewCreateMessageReply()
 	params := anyllm.CompletionParams{
@@ -44,7 +45,7 @@ func (s *Service) BuildCompletion(ctx context.Context, messages []anyllm.Message
 		Tools:           []anyllm.Tool{toolCreateMessageSend.Tool(), toolCreateMessageReply.Tool()},
 	}
 
-	var socket larksock.Socket
+	var socket io.WriteCloser
 	completion, err := llm.Completion(ctx, s.provider, params)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to call chat completion", "err", err)
@@ -53,13 +54,13 @@ func (s *Service) BuildCompletion(ctx context.Context, messages []anyllm.Message
 
 	if len(completion.Choices) == 0 || len(completion.Choices[0].Message.ToolCalls) == 0 {
 		slog.ErrorContext(ctx, "no choices")
-		socket = larksock.NewSendSocket(s.larkcli, *eMessage.ChatId)
+		socket = larksock.NewSendSocket(s.larkcli, s.oapicli, *eMessage.ChatId)
 	} else {
 		switch completion.Choices[0].Message.ToolCalls[0].Function.Name {
 		case toolCreateMessageSend.Function().Name:
-			socket = larksock.NewSendSocket(s.larkcli, *eMessage.ChatId)
+			socket = larksock.NewSendSocket(s.larkcli, s.oapicli, *eMessage.ChatId)
 		case toolCreateMessageReply.Function().Name:
-			socket = larksock.NewReplySocket(s.larkcli, *eMessage.MessageId)
+			socket = larksock.NewReplySocket(s.larkcli, s.oapicli, *eMessage.MessageId)
 		}
 	}
 
@@ -178,7 +179,8 @@ func (s *Service) BuildHistoryMessages(ctx context.Context, eMessage *larkim.Eve
 			}
 			msg, err := s.BuildLarkMessage(ctx, containerIdType, item)
 			if err != nil {
-				return nil, err
+				slog.ErrorContext(ctx, "failed to build lark message", "err", err, "content", item.Body.Content)
+				msg = anyllm.Message{Role: anyllm.RoleUser, Content: item.Body.Content}
 			}
 			messages = append(messages, msg)
 		}
@@ -293,6 +295,7 @@ func (s *Service) BuildLarkMessage(
 	} else {
 		content, err = lark.UnwrapMessageContent(item.MsgType, item.Body.Content)
 		if err != nil {
+			content = &lark.MessageContent{}
 			if err.Error() == "unknown message type: interactive" {
 				content.MsgType = lark.MsgTypeInteractive
 				content.Text = &lark.MessageContentText{Text: item.Body.Content}
@@ -344,8 +347,7 @@ func (s *Service) BuildLarkMessageContentParts(
 	sender *lark.Sender, containIdType lark.ContainerIDType, content *lark.MessageContent, timestamp time.Time,
 ) ([]anyllm.ContentPart, error) {
 	var builder strings.Builder
-	fmt.Fprintf(&builder, "## %s\n", containIdType)
-	fmt.Fprintf(&builder, "[%s]\n", timestamp.Format(time.RFC3339))
+	_, _ = fmt.Fprintf(&builder, "#%s[%s]\n", timestamp.Format(time.RFC3339), containIdType)
 
 	var senderID, senderName string
 	switch sender.SenderType {
@@ -354,7 +356,7 @@ func (s *Service) BuildLarkMessageContentParts(
 	case "user":
 		senderID, senderName, _ = s.RetrieveLarkUser(ctx, sender.ID, sender.IDType)
 	}
-	fmt.Fprintf(&builder, "%s@%s: ", senderName, senderID)
+	_, _ = fmt.Fprintf(&builder, "%s@%s: ", senderName, senderID)
 
 	parts := make([]anyllm.ContentPart, 1)
 	switch content.MsgType {
@@ -365,22 +367,22 @@ func (s *Service) BuildLarkMessageContentParts(
 		if err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(&builder, "![image](%s)\n", url)
+		_, _ = fmt.Fprintf(&builder, "![image](%s)\n", url)
 		parts = append(parts, anyllm.ContentPart{Type: "image_url", ImageURL: &anyllm.ImageURL{URL: url}})
 	case lark.MsgTypePost:
 		for _, items := range content.Post.Content {
 			for _, item := range items {
 				switch t := item.(type) {
 				case lark.MessageContentPostText:
-					fmt.Fprint(&builder, t.Text)
+					_, _ = fmt.Fprint(&builder, t.Text)
 				case lark.MessageContentPostLink:
-					fmt.Fprintf(&builder, " [%s](%s) ", t.Text, t.Href)
+					_, _ = fmt.Fprintf(&builder, " [%s](%s) ", t.Text, t.Href)
 				case lark.MessageContentPostImage:
 					url, err := s.RetrieveLarkImageURL(ctx, t.ImageKey)
 					if err != nil {
 						return nil, err
 					}
-					fmt.Fprintf(&builder, " ![image](%s) ", url)
+					_, _ = fmt.Fprintf(&builder, " ![image](%s) ", url)
 					parts = append(parts, anyllm.ContentPart{Type: "image_url", ImageURL: &anyllm.ImageURL{URL: url}})
 				}
 			}
@@ -392,21 +394,22 @@ func (s *Service) BuildLarkMessageContentParts(
 			Elements [][]larkcard.MessageCardElement `json:"elements"`
 		}
 		if err := json.Unmarshal([]byte(str), &interactive); err != nil {
+			slog.ErrorContext(ctx, "failed to unmarshal interactive message", "err", err, "content", str)
 			return nil, err
 		}
-		fmt.Fprint(&builder, "\n\n<card>\n")
-		fmt.Fprintf(&builder, "<card_title>%s</card_title>\n", interactive.Title)
+		_, _ = fmt.Fprint(&builder, "\n\n<card>\n")
+		_, _ = fmt.Fprintf(&builder, "<card_title>%s</card_title>\n", interactive.Title)
 		for _, elements := range interactive.Elements {
-			fmt.Fprint(&builder, "<card_section>\n")
+			_, _ = fmt.Fprint(&builder, "<card_section>\n")
 			for _, element := range elements {
 				switch t := element.(type) {
 				case larkcard.MessageCardText:
-					fmt.Fprint(&builder, "<element>"+t.Text()+"</element>\n")
+					_, _ = fmt.Fprint(&builder, "<element>"+t.Text()+"</element>\n")
 				}
 			}
-			fmt.Fprint(&builder, "</card_section>\n")
+			_, _ = fmt.Fprint(&builder, "</card_section>\n")
 		}
-		fmt.Fprint(&builder, "</card>\n\n")
+		_, _ = fmt.Fprint(&builder, "</card>\n\n")
 	}
 	parts[0].Type, parts[0].Text = "text", builder.String()
 	return parts, nil
